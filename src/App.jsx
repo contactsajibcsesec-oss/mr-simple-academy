@@ -666,38 +666,172 @@ function App() {
     );
   }
 
-  // ── Authentication Shell ──
+  // ── Modern Public Homepage & Student Portal ──
   if (!student && !admin) {
     return (
-      <div className="auth-shell">
-        <div className="auth-brand">🎓 <b>MR. SIMPLE ACADEMY</b></div>
-        <div className="auth-card">
-          <div className="auth-mark">MSA</div>
-          <h1>{adminMode ? "Admin Portal" : "Student Login"}</h1>
-          <p>{adminMode ? "শিক্ষক হিসেবে প্রবেশ করতে ইমেইল ও পাসওয়ার্ড দাও" : "তোমার Access Code দিয়ে প্রবেশ করো"}</p>
-          <form onSubmit={adminMode ? adminLogin : studentLogin}>
-            {adminMode ? (
-              <>
-                <label>Admin Email</label>
-                <input type="email" placeholder="admin@mrsimple.com" value={email} onChange={e => setEmail(e.target.value)} required />
-                <label>Password</label>
-                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-              </>
-            ) : (
-              <>
-                <label>Student Access Code</label>
-                <input value={code} onChange={e => setCode(e.target.value)} placeholder="যেমন: MSA-123456" required />
-              </>
-            )}
-            <button className="btn primary full" disabled={busy}>
-              {busy ? "যাচাই করা হচ্ছে..." : (adminMode ? "Sign In to Admin" : "Enter Academy")}
-            </button>
-          </form>
-          {error && <p className="error">{error}</p>}
-          <button className="text-btn" onClick={() => { setAdminMode(!adminMode); setError(""); }}>
-            {adminMode ? "← Student Login-এ যাও" : "Admin Login (শিক্ষকদের জন্য) →"}
-          </button>
-        </div>
+      <div className="home-wrapper">
+        {/* Navigation Bar */}
+        <header className="home-nav">
+          <div className="nav-container">
+            <div className="home-logo">
+              <span className="logo-icon">🎓</span>
+              <div>
+                <b>MR. SIMPLE ACADEMY</b>
+                <small>Online Examination & Assessment Portal</small>
+              </div>
+            </div>
+            <div className="nav-actions">
+              <button 
+                className={adminMode ? "btn primary small" : "btn ghost small"} 
+                onClick={() => { setAdminMode(!adminMode); setError(""); }}
+              >
+                {adminMode ? "👨‍🎓 শিক্ষার্থী পোর্টাল" : "👨‍🏫 শিক্ষক লগইন (Admin)"}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <section className="home-hero">
+          <div className="hero-container">
+            {/* Left Column: Academy Presentation */}
+            <div className="hero-content">
+              <div className="hero-badge">✨ সহজ ও আধুনিক একাডেমি পোর্টাল</div>
+              <h1>সহজ ও সুন্দর অনলাইন পরীক্ষা প্ল্যাটফর্ম</h1>
+              <p className="hero-subtext">
+                Mr. Simple Academy-তে তোমার পড়াশোনার প্রস্তুতি নিয়মিত যাচাই করো। শিক্ষক কর্তৃক নির্ধারিত পরীক্ষায় অংশ নাও, তাৎক্ষণিক MCQ ফলাফল এবং সরাসরি সৃজনশীল খাতা মূল্যায়ন পাও।
+              </p>
+
+              {/* 3 Quick Features */}
+              <div className="hero-features">
+                <div className="feature-item">
+                  <div className="feature-icon">⚡</div>
+                  <div>
+                    <b>সহজ অ্যাক্সেস</b>
+                    <small>কোনো জটিল পাসওয়ার্ডের ঝামেলা নেই, শিক্ষকের দেওয়া Access Code দিয়ে এক ক্লিকে প্রবেশ।</small>
+                  </div>
+                </div>
+                <div className="feature-item">
+                  <div className="feature-icon">⏱️</div>
+                  <div>
+                    <b>লাইভ কাউন্টডাউন ও সময়সীমা</b>
+                    <small>১২ ঘণ্টার সুবিধাজনক উইন্ডো এবং পরীক্ষার জন্য লাইভ টাইমার।</small>
+                  </div>
+                </div>
+                <div className="feature-item">
+                  <div className="feature-icon">✍️</div>
+                  <div>
+                    <b>সরাসরি খাতা মূল্যায়ন</b>
+                    <small>মোবাইল দিয়ে উত্তরের ছবি বা PDF আপলোড এবং শিক্ষকের পয়েন্টভিত্তিক ফিডব্যাক।</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Portal Login Card */}
+            <div className="hero-card-col">
+              <div className="portal-card">
+                <div className="portal-card-header">
+                  <div className="portal-icon">{adminMode ? "🔐" : "👨‍🎓"}</div>
+                  <div>
+                    <h2>{adminMode ? "Admin Portal (শিক্ষক)" : "Student Login (শিক্ষার্থী)"}</h2>
+                    <p>{adminMode ? "শিক্ষক অ্যাকাউন্টে প্রবেশ করতে তথ্য দিন" : "তোমার অ্যাক্সেস কোড দিয়ে পরীক্ষায় বসো"}</p>
+                  </div>
+                </div>
+
+                <form onSubmit={adminMode ? adminLogin : studentLogin} className="portal-form">
+                  {adminMode ? (
+                    <>
+                      <label>Admin Email</label>
+                      <input 
+                        type="email" 
+                        placeholder="admin@mrsimple.com" 
+                        value={email} 
+                        onChange={e => setEmail(e.target.value)} 
+                        required 
+                      />
+                      <label>Password</label>
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        required 
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <label>Student Access Code (শিক্ষার্থীর কোড)</label>
+                      <input 
+                        value={code} 
+                        onChange={e => setCode(e.target.value)} 
+                        placeholder="যেমন: MSA-123456" 
+                        required 
+                        autoFocus
+                      />
+                      <small className="input-hint">
+                        💡 তোমার শিক্ষক কর্তৃক প্রদত্ত কোডটি এখানে লিখো।
+                      </small>
+                    </>
+                  )}
+
+                  <button className="btn primary full portal-submit-btn" disabled={busy}>
+                    {busy ? "যাচাই করা হচ্ছে..." : (adminMode ? "Sign In to Admin Portal" : "পরীক্ষায় প্রবেশ করো (Enter Portal) →")}
+                  </button>
+                </form>
+
+                {error && <div className="error" style={{ marginTop: "14px" }}>{error}</div>}
+
+                <div className="portal-footer">
+                  <button 
+                    type="button" 
+                    className="text-btn" 
+                    onClick={() => { setAdminMode(!adminMode); setError(""); }}
+                  >
+                    {adminMode ? "← শিক্ষার্থী প্রবেশদ্বার (Student Login)" : "শিক্ষক হিসেবে প্রবেশ করতে চাও? Admin Login →"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3 Steps Guide Section */}
+        <section className="steps-section">
+          <div className="steps-container">
+            <div className="section-title-center">
+              <small>HOW IT WORKS</small>
+              <h2>কীভাবে পরীক্ষায় অংশ নেবে?</h2>
+              <p>মাত্র ৩টি সহজ ধাপে পরীক্ষা দেওয়া ও ফলাফল পাওয়া</p>
+            </div>
+
+            <div className="steps-grid">
+              <div className="step-card">
+                <div className="step-num">১</div>
+                <h3>কোড দিয়ে প্রবেশ</h3>
+                <p>শিক্ষকের কাছ থেকে পাওয়া ইউনিক অ্যাক্সেস কোড দিয়ে তোমার অ্যাকাউন্টে লগইন করো।</p>
+              </div>
+              <div className="step-card">
+                <div className="step-num">২</div>
+                <h3>পরীক্ষা সম্পন্ন করো</h3>
+                <p>নির্ধারিত সময়ের মধ্যে পরীক্ষা শুরু করে MCQ দাগাও এবং লিখিত উত্তরের ছবি বা PDF জমা দাও।</p>
+              </div>
+              <div className="step-card">
+                <div className="step-num">৩</div>
+                <h3>ফলাফল ও পরামর্শ</h3>
+                <p>শিক্ষক খাতা মূল্যায়ন করলে তোমার ড্যাশবোর্ডে প্রাপ্ত নম্বর ও বিস্তারিত ফিডব্যাক দেখো।</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Home Footer */}
+        <footer className="home-footer">
+          <div className="footer-container">
+            <p>🎓 <b>Mr. Simple Academy</b> — আধুনিক অনলাইন পরীক্ষা ও মূল্যায়ন প্ল্যাটফর্ম</p>
+            <small>© {new Date().getFullYear()} Mr. Simple Academy. সর্বস্বত্ব সংরক্ষিত।</small>
+          </div>
+        </footer>
       </div>
     );
   }
@@ -803,23 +937,43 @@ function App() {
           <button className="btn ghost" onClick={logout}>Logout</button>
         </header>
         <main className="content">
-          <div className="welcome">
-            <div>
-              <small>STUDENT DASHBOARD</small>
-              <h1>স্বাগতম, {student.name}!</h1>
-              <p>{student.class_name || ""} {student.roll_no ? `· Roll ${student.roll_no}` : ""}</p>
+          <div className="student-profile-bar">
+            <div className="student-info-left">
+              <div className="student-big-avatar">{(student.name || "S")[0]}</div>
+              <div>
+                <span className="badge-pill-success" style={{ fontSize: "11px" }}>● স্টুডেন্ট পোর্টাল সক্রিয়</span>
+                <h1 style={{ margin: "4px 0", fontSize: "24px", color: "#19365f" }}>স্বাগতম, {student.name}!</h1>
+                <p style={{ margin: 0, color: "#687a93", fontSize: "13px" }}>
+                  {student.class_name ? `শ্রেণি / ব্যাচ: ${student.class_name}` : "সাধারণ শিক্ষার্থী"} {student.roll_no ? `· রোল: ${student.roll_no}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="student-quick-stats">
+              <div className={`quick-stat-box ${studentTab === "assigned" ? "active" : ""}`} onClick={() => setStudentTab("assigned")}>
+                <small>বরাদ্দকৃত পরীক্ষা</small>
+                <b>{(student.exams || []).length} টি</b>
+              </div>
+              <div className={`quick-stat-box ${studentTab === "submitting" ? "active" : ""}`} onClick={() => setStudentTab("submitting")}>
+                <small>মূল্যায়নাধীন খাতা</small>
+                <b>{submittingExams.length} টি</b>
+              </div>
+              <div className={`quick-stat-box ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
+                <small>ফলাফল প্রকাশিত</small>
+                <b>{results.length} টি</b>
+              </div>
             </div>
           </div>
 
           <div className="student-tabs">
             <button className={`tab-btn ${studentTab === "assigned" ? "active" : ""}`} onClick={() => setStudentTab("assigned")}>
-              📅 Assigned Exams <span className="tab-badge">{(student.exams || []).length}</span>
+              📅 Assigned Exams (বরাদ্দকৃত) <span className="tab-badge">{(student.exams || []).length}</span>
             </button>
             <button className={`tab-btn ${studentTab === "submitting" ? "active" : ""}`} onClick={() => setStudentTab("submitting")}>
-              ⏳ Submitting Exams <span className="tab-badge">{submittingExams.length}</span>
+              ⏳ Submitting (মূল্যায়নাধীন) <span className="tab-badge">{submittingExams.length}</span>
             </button>
             <button className={`tab-btn ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
-              🏆 Results & History <span className="tab-badge">{results.length}</span>
+              🏆 Results (ফলাফল ও ইতিহাস) <span className="tab-badge">{results.length}</span>
             </button>
           </div>
 
