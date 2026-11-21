@@ -84,6 +84,65 @@ function DeadlineCountdown({ assignedAt, startsAt, durationHours = 12 }) {
   );
 }
 
+/* ── Unified Academy Footer Component ───────────────────────────── */
+function AcademyFooter() {
+  return (
+    <footer className="site-footer">
+      <div className="footer-container">
+        <div className="footer-top">
+          {/* Academy Info */}
+          <div className="footer-col brand-col">
+            <div className="footer-brand">
+              <span className="footer-logo-icon">🎓</span>
+              <div>
+                <b>MR. SIMPLE ACADEMY</b>
+                <small>Online Examination & Assessment Portal</small>
+              </div>
+            </div>
+            <p className="footer-bio">
+              সহজ, নির্ভরযোগ্য ও আধুনিক পরীক্ষা পদ্ধতি। এখানে শিক্ষার্থীরা তাদের প্রস্তুতি যাচাই এবং শিক্ষকের সরাসরি পয়েন্টভিত্তিক মতামত পেতে পারে।
+            </p>
+          </div>
+
+          {/* Teacher & Developer Info */}
+          <div className="footer-col teacher-col">
+            <div className="teacher-card-inner">
+              <div className="teacher-header">
+                <div className="teacher-avatar">HS</div>
+                <div>
+                  <span className="teacher-tag">👨‍🏫 Instructor & Engineer</span>
+                  <h3 className="teacher-title">Hasnat Sajib</h3>
+                  <p className="teacher-degree">Computer Science & Engineering</p>
+                </div>
+              </div>
+              <div className="teacher-contact-row">
+                <a href="tel:01897410417" className="contact-btn phone">
+                  📞 <span>01897410417</span>
+                </a>
+                <a 
+                  href="https://wa.me/8801897410417" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="contact-btn whatsapp"
+                >
+                  💬 <span>WhatsApp Message</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="footer-bottom">
+          <p>© {new Date().getFullYear()} <b>Mr. Simple Academy</b>. All Rights Reserved.</p>
+          <p className="credit-text">
+            Developed & Managed by <b>Hasnat Sajib</b> (CSE) · 📞 01897410417
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 function App() {
   // Auth & General States
   const [studentCode, setStudentCode] = useState("");
@@ -825,13 +884,8 @@ function App() {
           </div>
         </section>
 
-        {/* Home Footer */}
-        <footer className="home-footer">
-          <div className="footer-container">
-            <p>🎓 <b>Mr. Simple Academy</b> — আধুনিক অনলাইন পরীক্ষা ও মূল্যায়ন প্ল্যাটফর্ম</p>
-            <small>© {new Date().getFullYear()} Mr. Simple Academy. সর্বস্বত্ব সংরক্ষিত।</small>
-          </div>
-        </footer>
+        {/* Home Footer with Teacher & Contact Details */}
+        <AcademyFooter />
       </div>
     );
   }
@@ -1066,57 +1120,91 @@ function App() {
             <div>
               <div className="student-section-heading results-heading">
                 <div>
-                  <h2>পরীক্ষার ফলাফল ও ইতিহাস (Results)</h2>
-                  <p>প্রকাশিত ফলাফলের তালিকা ও শিক্ষকের মূল্যায়ন।</p>
+                  <h2>পরীক্ষার ফলাফল ও মূল্যায়ন (Results & Performance)</h2>
+                  <p>শিক্ষক কর্তৃক মূল্যায়িত সকল পরীক্ষার ফলাফল, অর্জিত নম্বর ও শিক্ষকের পরামর্শ।</p>
                 </div>
+                <span className="count-pill">{results.length}টি পরীক্ষা</span>
               </div>
 
-              <section className="card results-card">
-                <div className="table-scroll">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Exam Details</th>
-                        <th>Time & Date</th>
-                        <th>Marks</th>
-                        <th>মন্তব্য</th>
-                        <th>আবার পরীক্ষা দাও</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.map(r => (
-                        <tr key={r.attempt_id}>
-                          <td>
-                            <b>{r.exam_title}</b>
-                            <small>{r.subject || "—"}</small>
-                          </td>
-                          <td>{r.submitted_at ? new Date(r.submitted_at).toLocaleString("bn-BD") : "—"}</td>
-                          <td>
+              {results.length === 0 ? (
+                <div className="empty-state">এখনো কোনো পরীক্ষার ফলাফল প্রকাশিত হয়নি।</div>
+              ) : (
+                <div className="results-modern-grid">
+                  {results.map(r => {
+                    const pct = r.total_marks > 0 ? Math.round((r.final_score / r.total_marks) * 100) : 0;
+                    const isHigh = pct >= 80;
+                    const isMedium = pct >= 50 && pct < 80;
+                    const scoreTheme = isHigh ? "score-high" : (isMedium ? "score-medium" : "score-low");
+
+                    return (
+                      <article className="result-card-item" key={r.attempt_id}>
+                        <div className="result-card-main">
+                          <div className="result-info-header">
+                            <span className="subject-tag">{r.subject || "সাধারণ বিষয়"}</span>
+                            <span className="result-date-chip">
+                              🗓️ {r.submitted_at ? new Date(r.submitted_at).toLocaleString("bn-BD") : "—"}
+                            </span>
+                          </div>
+
+                          <h3 className="result-card-title">{r.exam_title}</h3>
+
+                          {/* Teacher's Feedback Quote Bubble */}
+                          <div className="result-feedback-box">
+                            <span className="feedback-icon">💬</span>
+                            <div className="feedback-content">
+                              <b>শিক্ষকের মন্তব্য:</b>
+                              <p>
+                                {r.teacher_feedback 
+                                  ? `"${r.teacher_feedback}"` 
+                                  : (r.is_graded ? "কোনো মন্তব্য নেই। চমৎকার প্রচেষ্টা!" : "শিক্ষক খাতা মূল্যায়ন করছেন, শীঘ্রই মন্তব্য প্রকাশিত হবে।")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="result-card-side">
+                          <div className={`score-display-box ${scoreTheme}`}>
                             {r.is_graded ? (
-                              <strong className="result-marks">{r.final_score}/{r.total_marks}</strong>
+                              <>
+                                <small>অর্জিত নম্বর</small>
+                                <div className="score-val">
+                                  <strong>{r.final_score}</strong>
+                                  <span>/{r.total_marks}</span>
+                                </div>
+                                <span className="score-pct-chip">{pct}% স্কোর</span>
+                              </>
                             ) : (
-                              <span className="pending-chip">মূল্যায়ন চলছে</span>
+                              <span className="eval-wait-chip">⏳ মূল্যায়ন চলছে</span>
                             )}
-                          </td>
-                          <td className="feedback-cell">{r.teacher_feedback || (r.is_graded ? "কোনো মন্তব্য নেই" : "শিক্ষকের মূল্যায়নের অপেক্ষায়")}</td>
-                          <td>
-                            <button className="btn outline small" disabled={!r.is_graded} onClick={() => retakeExam(r)}>
-                              {r.is_graded ? "আবার পরীক্ষা দাও" : "ফলাফলের অপেক্ষায়"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+
+                          <button 
+                            className="btn outline small retake-action-btn" 
+                            disabled={!r.is_graded} 
+                            onClick={() => retakeExam(r)}
+                          >
+                            🔄 {r.is_graded ? "আবার পরীক্ষা দাও" : "ফলাফলের অপেক্ষায়"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
-                {results.length === 0 && <div className="empty-state inside">এখনো কোনো পরীক্ষার ফলাফল প্রকাশিত হয়নি।</div>}
-              </section>
+              )}
             </div>
           )}
 
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <div className="error-banner" style={{ marginTop: "20px" }}>
+              <span>⚠️ {error}</span>
+              <button onClick={() => setError("")}>✕</button>
+            </div>
+          )}
           {notice && <div className="toast success-toast">{notice}</div>}
         </main>
+
+        {/* Global Footer in Student Portal */}
+        <AcademyFooter />
       </div>
     );
   }
