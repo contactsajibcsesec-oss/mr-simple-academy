@@ -353,32 +353,42 @@
 .error-banner button{background:none;border:0;color:#9b2c2c;font-size:16px;cursor:pointer}
 
 /* ── Unified Premium Academy Footer ───────────────────────────── */
-.site-footer{background:#0d1829;color:#e2e8f0;border-top:1px solid #1e293b;padding:50px 24px 30px;margin-top:auto}
+.site-footer{background:#0d1829;color:#e2e8f0;border-top:1px solid #1e293b;padding:45px 20px 24px;margin-top:auto}
 .site-footer .footer-container{max-width:1160px;margin:0 auto}
-.footer-top{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;padding-bottom:34px;border-bottom:1px solid #1e293b}
-@media(max-width:850px){.footer-top{grid-template-columns:1fr;gap:28px}}
-
-.footer-brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.footer-top{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;padding-bottom:28px;border-bottom:1px solid #1e293b}
+.footer-brand{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .footer-logo-icon{font-size:28px}
 .footer-brand b{display:block;font-size:18px;color:#ffffff;letter-spacing:.5px}
 .footer-brand small{display:block;font-size:11px;color:#94a3b8}
-.footer-bio{margin:0;font-size:13px;color:#94a3b8;line-height:1.7;max-width:480px}
+.footer-bio{margin:0;font-size:13px;color:#94a3b8;line-height:1.6;max-width:480px}
 
-.teacher-card-inner{background:#16243b;border:1px solid #24354f;border-radius:18px;padding:20px 24px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-.teacher-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
-.teacher-avatar{height:48px;width:48px;border-radius:14px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#ffffff;display:grid;place-items:center;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(49,130,206,.3)}
+.teacher-card-inner{background:#16243b;border:1px solid #24354f;border-radius:18px;padding:20px 22px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.teacher-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.teacher-avatar{height:46px;width:46px;border-radius:14px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#ffffff;display:grid;place-items:center;font-weight:800;font-size:17px;flex-shrink:0;box-shadow:0 4px 12px rgba(49,130,206,.3)}
+.teacher-meta{min-width:0}
 .teacher-tag{display:inline-block;font-size:10px;color:#90cdf4;text-transform:uppercase;letter-spacing:1px;font-weight:700}
 .teacher-title{margin:2px 0 0;font-size:18px;color:#ffffff}
-.teacher-degree{margin:2px 0 0;font-size:12px;color:#a0aec0}
+.teacher-degree{margin:2px 0 0;font-size:13px;color:#cbd5e1;font-weight:600}
+.teacher-institute{margin:2px 0 0;font-size:12px;color:#94a3b8}
 
 .teacher-contact-row{display:flex;gap:10px;flex-wrap:wrap}
-.contact-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;transition:all .15s}
-.contact-btn.phone{background:#2d3748;color:#ffffff;border:1px solid #4a5568}
-.contact-btn.phone:hover{background:#3b475a;border-color:#718096}
+.contact-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;transition:all .15s}
+.contact-btn.phone{background:#243247;color:#ffffff;border:1px solid #3b4d68}
+.contact-btn.phone:hover{background:#32435e;border-color:#5c7396}
 .contact-btn.whatsapp{background:#25d366;color:#ffffff;box-shadow:0 4px 12px rgba(37,211,102,.25)}
 .contact-btn.whatsapp:hover{background:#20ba5a}
 
-.footer-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-top:24px;font-size:12px;color:#64748b}
+.footer-bottom{display:flex;justify-content:center;align-items:center;text-align:center;padding-top:20px;font-size:12px;color:#94a3b8}
 .footer-bottom p{margin:0}
-.footer-bottom b{color:#cbd5e1}
-.credit-text{color:#94a3b8}
+.footer-bottom b{color:#e2e8f0}
+
+@media(max-width:768px){
+  .site-footer{padding:36px 16px 20px}
+  .footer-top{grid-template-columns:1fr;gap:24px;text-align:center}
+  .footer-brand{justify-content:center}
+  .footer-bio{margin:0 auto}
+  .teacher-card-inner{padding:18px 16px}
+  .teacher-header{flex-direction:column;align-items:center;text-align:center}
+  .teacher-contact-row{flex-direction:column;width:100%}
+  .contact-btn{width:100%;padding:11px 16px}
+}

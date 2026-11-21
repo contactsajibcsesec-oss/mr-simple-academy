@@ -104,15 +104,16 @@ function AcademyFooter() {
             </p>
           </div>
 
-          {/* Teacher & Developer Info */}
+          {/* Teacher Info */}
           <div className="footer-col teacher-col">
             <div className="teacher-card-inner">
               <div className="teacher-header">
                 <div className="teacher-avatar">HS</div>
-                <div>
-                  <span className="teacher-tag">👨‍🏫 Instructor & Engineer</span>
+                <div className="teacher-meta">
+                  <span className="teacher-tag">👨‍🏫 Instructor</span>
                   <h3 className="teacher-title">Hasnat Sajib</h3>
                   <p className="teacher-degree">Computer Science & Engineering</p>
+                  <p className="teacher-institute">Sylhet Engineering College (SUST)</p>
                 </div>
               </div>
               <div className="teacher-contact-row">
@@ -133,10 +134,7 @@ function AcademyFooter() {
         </div>
 
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} <b>Mr. Simple Academy</b>. All Rights Reserved.</p>
-          <p className="credit-text">
-            Developed & Managed by <b>Hasnat Sajib</b> (CSE) · 📞 01897410417
-          </p>
+          <p>© {new Date().getFullYear()} <b>Mr. Simple Academy</b> · Hasnat Sajib</p>
         </div>
       </div>
     </footer>
