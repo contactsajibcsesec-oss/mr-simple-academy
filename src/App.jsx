@@ -179,8 +179,12 @@ function App() {
   const [templateQuestions, setTemplateQuestions] = useState([]);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
-  const [question, setQuestion] = useState({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null });
+  const [question, setQuestion] = useState({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null, explanation: "" });
   const [templateSearch, setTemplateSearch] = useState("");
+  // Answer Review & Explanation States
+  const [reviewingAttempt, setReviewingAttempt] = useState(null);
+  const [reviewData, setReviewData] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [templateSubjectFilter, setTemplateSubjectFilter] = useState("");
   const [templateChapterFilter, setTemplateChapterFilter] = useState("");
   const [showArchivedTemplates, setShowArchivedTemplates] = useState(false);
@@ -365,13 +369,32 @@ function App() {
   async function submitExam() {
     if (!confirm("পরীক্ষা জমা দিতে চাও? নিশ্চিত করো সব উত্তর দেওয়া হয়েছে।")) return;
     try {
-      await rpc("student_submit_exam", { p_code: studentCode, p_exam_id: activeExam.id, p_answers: answers });
+      const res = await rpc("student_submit_exam", { p_code: studentCode, p_exam_id: activeExam.id, p_answers: answers });
       setActiveExam(null);
       await refreshStudentDashboard();
-      setStudentTab("submitting");
-      notify("পরীক্ষা সফলভাবে জমা হয়েছে! শিক্ষক মূল্যায়ন করার পর ফলাফল দেখতে পাবে।");
+      if (res?.is_auto_graded) {
+        setStudentTab("results");
+        notify(`পরীক্ষা জমা হয়েছে! MCQ স্কোর: ${res.mcq_score}/${res.mcq_total}। অটোমেটিক ফলাফল ও উত্তরমালা প্রকাশিত হয়েছে।`);
+      } else {
+        setStudentTab("submitting");
+        notify("পরীক্ষা সফলভাবে জমা হয়েছে! শিক্ষক লিখিত খাতা মূল্যায়ন করার পর ফলাফল দেখতে পাবে।");
+      }
     } catch (x) {
       setError(x.message);
+    }
+  }
+
+  async function openReview(attemptId) {
+    setReviewLoading(true);
+    setReviewingAttempt(attemptId);
+    try {
+      const data = await rpc("student_review_answers", { p_code: studentCode, p_attempt_id: attemptId });
+      setReviewData(data);
+    } catch (x) {
+      setError(x.message || "উত্তরমালার তথ্য লোড করা যায়নি।");
+      setReviewingAttempt(null);
+    } finally {
+      setReviewLoading(false);
     }
   }
 
@@ -429,7 +452,7 @@ function App() {
       });
     }
     setEditingQuestion(null);
-    setQuestion({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null });
+    setQuestion({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null, explanation: "" });
     try {
       const qs = await rpc("admin_list_template_questions", { p_template_id: id });
       setTemplateQuestions(qs || []);
@@ -508,24 +531,48 @@ function App() {
       }
       let d;
       if (editingQuestion) {
-        await rpc("admin_update_template_question", {
-          p_question_id: editingQuestion,
-          p_question_text: question.text,
-          p_question_type: question.type,
-          p_options: options,
-          p_correct_answer: question.type === "mcq" ? question.correct : null,
-          p_marks: Number(question.marks)
-        });
+        try {
+          await rpc("admin_update_template_question", {
+            p_question_id: editingQuestion,
+            p_question_text: question.text,
+            p_question_type: question.type,
+            p_options: options,
+            p_correct_answer: question.type === "mcq" ? question.correct : null,
+            p_marks: Number(question.marks),
+            p_explanation: question.explanation || ""
+          });
+        } catch {
+          await rpc("admin_update_template_question", {
+            p_question_id: editingQuestion,
+            p_question_text: question.text,
+            p_question_type: question.type,
+            p_options: options,
+            p_correct_answer: question.type === "mcq" ? question.correct : null,
+            p_marks: Number(question.marks)
+          });
+        }
         d = { id: editingQuestion };
       } else {
-        d = await rpc("admin_add_template_question", {
-          p_template_id: activeTemplate,
-          p_question_text: question.text,
-          p_question_type: question.type,
-          p_options: options,
-          p_correct_answer: question.type === "mcq" ? question.correct : null,
-          p_marks: Number(question.marks)
-        });
+        try {
+          d = await rpc("admin_add_template_question", {
+            p_template_id: activeTemplate,
+            p_question_text: question.text,
+            p_question_type: question.type,
+            p_options: options,
+            p_correct_answer: question.type === "mcq" ? question.correct : null,
+            p_marks: Number(question.marks),
+            p_explanation: question.explanation || ""
+          });
+        } catch {
+          d = await rpc("admin_add_template_question", {
+            p_template_id: activeTemplate,
+            p_question_text: question.text,
+            p_question_type: question.type,
+            p_options: options,
+            p_correct_answer: question.type === "mcq" ? question.correct : null,
+            p_marks: Number(question.marks)
+          });
+        }
       }
       if (question.file) {
         if (!validFile(question.file)) throw Error("JPG, PNG অথবা PDF; সর্বোচ্চ ৮ MB।");
@@ -540,7 +587,7 @@ function App() {
         });
       }
       setEditingQuestion(null);
-      setQuestion({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null });
+      setQuestion({ text: "", type: "mcq", marks: 1, options: ["", "", "", ""], correct: "", file: null, explanation: "" });
       await openTemplate(activeTemplate);
       await loadAdmin();
       notify(editingQuestion ? "প্রশ্ন আপডেট হয়েছে।" : "নতুন প্রশ্ন সংরক্ষণ হয়েছে।");
@@ -557,7 +604,8 @@ function App() {
       marks: q.marks,
       options: q.options || ["", "", "", ""],
       correct: q.correct_answer || "",
-      file: null
+      file: null,
+      explanation: q.explanation || ""
     });
   }
 
@@ -1176,13 +1224,22 @@ function App() {
                             )}
                           </div>
 
-                          <button 
-                            className="btn outline small retake-action-btn" 
-                            disabled={!r.is_graded} 
-                            onClick={() => retakeExam(r)}
-                          >
-                            🔄 {r.is_graded ? "আবার পরীক্ষা দাও" : "ফলাফলের অপেক্ষায়"}
-                          </button>
+                          <div className="result-action-col">
+                            <button 
+                              className="btn primary small review-action-btn" 
+                              disabled={!r.is_graded} 
+                              onClick={() => openReview(r.attempt_id)}
+                            >
+                              📖 উত্তরমালা ও ব্যাখ্যা
+                            </button>
+                            <button 
+                              className="btn outline small retake-action-btn" 
+                              disabled={!r.is_graded} 
+                              onClick={() => retakeExam(r)}
+                            >
+                              🔄 {r.is_graded ? "আবার পরীক্ষা দাও" : "ফলাফলের অপেক্ষায়"}
+                            </button>
+                          </div>
                         </div>
                       </article>
                     );
@@ -1200,6 +1257,160 @@ function App() {
           )}
           {notice && <div className="toast success-toast">{notice}</div>}
         </main>
+
+        {/* ── Student Answer Review & Explanation Modal ── */}
+        {reviewingAttempt && (
+          <div className="modal-overlay">
+            <div className="review-modal-card">
+              <div className="section-head">
+                <div>
+                  <span className="exam-tag assigned">উত্তরমালার পর্যালোচনা ও ব্যাখ্যা</span>
+                  <h2 style={{ marginTop: "6px" }}>{reviewData?.exam?.title || "পরীক্ষার ফলাফল"}</h2>
+                  <p>{reviewData?.exam?.subject} · মোট পূর্ণমান: {reviewData?.exam?.total_marks} নম্বর</p>
+                </div>
+                <button className="text-btn" onClick={() => { setReviewingAttempt(null); setReviewData(null); }}>
+                  ✕ বন্ধ করুন
+                </button>
+              </div>
+
+              {reviewLoading ? (
+                <div className="eval-status-box" style={{ margin: "30px 0" }}>
+                  <div className="eval-spinner" />
+                  <span>উত্তরমালার তথ্য লোড হচ্ছে, অপেক্ষা করো...</span>
+                </div>
+              ) : reviewData ? (
+                <div>
+                  {/* Score Top Banner */}
+                  <div className="review-score-banner">
+                    <div>
+                      <small>সর্বমোট অর্জিত স্কোর</small>
+                      <h3>{reviewData.attempt?.final_score} / {reviewData.exam?.total_marks}</h3>
+                    </div>
+                    {reviewData.attempt?.mcq_total > 0 && (
+                      <div>
+                        <small>MCQ স্কোর</small>
+                        <h3 style={{ color: "#2b6cb0" }}>{reviewData.attempt?.mcq_score} / {reviewData.attempt?.mcq_total}</h3>
+                      </div>
+                    )}
+                    {reviewData.attempt?.written_score > 0 && (
+                      <div>
+                        <small>লিখিত স্কোর</small>
+                        <h3 style={{ color: "#2b6cb0" }}>{reviewData.attempt?.written_score} নম্বর</h3>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Questions & Explanations List */}
+                  <div className="review-questions-list">
+                    {(reviewData.questions || []).map((q, i) => {
+                      const isMcq = q.question_type === "mcq";
+                      const isCorrect = q.is_correct === true;
+                      const isWrong = isMcq && q.student_answer && !isCorrect;
+
+                      return (
+                        <div className={`review-question-card ${isCorrect ? "q-correct" : (isWrong ? "q-wrong" : "")}`} key={q.id}>
+                          <div className="review-q-header">
+                            <span className="review-q-num">প্রশ্ন {i + 1}</span>
+                            <div className="review-q-status">
+                              {isMcq ? (
+                                isCorrect ? (
+                                  <span className="badge-pill-success">✓ সঠিক উত্তর (+{q.marks})</span>
+                                ) : isWrong ? (
+                                  <span className="badge-pill-danger">✗ ভুল উত্তর (০/{q.marks})</span>
+                                ) : (
+                                  <span className="badge-pill-warning">⚪ উত্তর দেওয়া হয়নি (০/{q.marks})</span>
+                                )
+                              ) : (
+                                <span className="meta-pill">লিখিত প্রশ্ন ({q.marks} নম্বর)</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="review-q-text">
+                            <MathText text={q.question_text} />
+                          </div>
+
+                          {/* Image files if any */}
+                          {(q.files || []).map(f => (
+                            <p className="template-file-link" key={f.id}>
+                              📎 <span>{f.file_name}</span>
+                            </p>
+                          ))}
+
+                          {/* MCQ Options Display */}
+                          {isMcq && (
+                            <div className="review-options-grid">
+                              {(q.options || []).map((opt, j) => {
+                                const isThisCorrect = (q.correct_answer === opt);
+                                const isThisStudentChoice = (q.student_answer === opt);
+
+                                let optClass = "review-opt-neutral";
+                                if (isThisCorrect) optClass = "review-opt-correct";
+                                else if (isThisStudentChoice && !isThisCorrect) optClass = "review-opt-wrong";
+
+                                return (
+                                  <div className={`review-opt-item ${optClass}`} key={j}>
+                                    <div className="review-opt-radio">
+                                      {String.fromCharCode(65 + j)}
+                                    </div>
+                                    <div className="review-opt-text">
+                                      <MathText text={opt} />
+                                    </div>
+                                    {isThisCorrect && (
+                                      <span className="opt-tag-correct">✓ সঠিক উত্তর</span>
+                                    )}
+                                    {isThisStudentChoice && !isThisCorrect && (
+                                      <span className="opt-tag-wrong">✗ তোমার ভুল উত্তর</span>
+                                    )}
+                                    {isThisStudentChoice && isThisCorrect && (
+                                      <span className="opt-tag-chosen">✓ তোমার উত্তর</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Written Question Answer */}
+                          {!isMcq && (
+                            <div className="student-written-answer-box" style={{ marginTop: "12px" }}>
+                              <small style={{ color: "#718096", fontWeight: 700 }}>তোমার লিখিত উত্তর:</small>
+                              <p style={{ margin: "4px 0 0" }}>{q.student_answer || "কোনো লিখিত উত্তর দেওয়া হয়নি।"}</p>
+                            </div>
+                          )}
+
+                          {/* Explanation Box */}
+                          <div className="explanation-box">
+                            <div className="explanation-title">
+                              <span>💡 সঠিক উত্তরের ব্যাখ্যা (Explanation):</span>
+                            </div>
+                            <div className="explanation-body">
+                              {q.explanation ? (
+                                <MathText text={q.explanation} />
+                              ) : (
+                                <p style={{ margin: 0, color: "#718096", fontSize: "13px" }}>
+                                  সঠিক উত্তর: <b>{q.correct_answer || "—"}</b> (এই প্রশ্নের কোনো অতিরিক্ত ব্যাখ্যা দেওয়া হয়নি)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
+                    <button className="btn primary" onClick={() => { setReviewingAttempt(null); setReviewData(null); }}>
+                      ✕ বন্ধ করুন (Close)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-state">উত্তরমালার কোনো তথ্য পাওয়া যায়নি।</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Global Footer in Student Portal */}
         <AcademyFooter />
@@ -1942,6 +2153,11 @@ function App() {
                               ✓ সঠিক উত্তর: <MathText text={q.correct_answer} />
                             </div>
                           )}
+                          {q.explanation && (
+                            <div className="correct-answer-preview" style={{ color: "#b7791f", marginTop: "4px" }}>
+                              💡 ব্যাখ্যা: <MathText text={q.explanation} />
+                            </div>
+                          )}
                           {(q.files || []).map(f => (
                             <p className="template-file-link" key={f.id}>
                               📎 <a href={templateFileUrls[f.id] || "#"} target="_blank" rel="noreferrer">{f.file_name} ↗</a>
@@ -2051,6 +2267,14 @@ function App() {
                           </select>
                         </>
                       )}
+
+                      <label>প্রশ্নের ব্যাখ্যা / Explanation (ঐচ্ছিক)</label>
+                      <textarea 
+                        rows="3" 
+                        value={question.explanation || ""} 
+                        onChange={e => setQuestion({ ...question, explanation: e.target.value })} 
+                        placeholder="পরীক্ষা শেষে শিক্ষার্থী উত্তরমালার সাথে এই ব্যাখ্যা দেখতে পাবে... যেমন: F = ma সূত্রানুসারে ত্বরণ দ্বিগুণ হবে..." 
+                      />
 
                       <label>প্রশ্নের ছবি বা PDF সংযুক্ত করুন (ঐচ্ছিক)</label>
                       <input type="file" accept={ACCEPT} onChange={e => setQuestion({ ...question, file: e.target.files?.[0] || null })} />
