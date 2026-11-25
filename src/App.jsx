@@ -144,7 +144,8 @@ function AcademyFooter() {
 function App() {
   // Auth & General States
   const [studentCode, setStudentCode] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() => localStorage.getItem("msa_saved_code") || "");
+  const [rememberCode, setRememberCode] = useState(true);
   const [student, setStudent] = useState(null);
   const [admin, setAdmin] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
@@ -155,9 +156,11 @@ function App() {
   const [notice, setNotice] = useState("");
 
   // Student Portal Navigation & Data
-  const [studentTab, setStudentTab] = useState("assigned"); // 'assigned' | 'submitting' | 'results'
+  const [studentTab, setStudentTab] = useState("assigned"); // 'assigned' | 'submitting' | 'results' | 'tuition'
   const [submittingExams, setSubmittingExams] = useState([]);
   const [results, setResults] = useState([]);
+  const [tuitionSessions, setTuitionSessions] = useState([]);
+  const [tuitionMonth, setTuitionMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [activeExam, setActiveExam] = useState(null);
   const [examQuestions, setExamQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -172,6 +175,10 @@ function App() {
   const [templates, setTemplates] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [attempts, setAttempts] = useState([]);
+  const [adminTuitionSessions, setAdminTuitionSessions] = useState([]);
+  const [tuitionForm, setTuitionForm] = useState({ student_id: "", session_date: new Date().toISOString().slice(0, 10), topic: "" });
+  const [tuitionMonthFilter, setTuitionMonthFilter] = useState(() => new Date().toISOString().slice(0, 7));
+  const [tuitionStudentFilter, setTuitionStudentFilter] = useState("");
 
   // Question Bank States
   const [template, setTemplate] = useState({ title: "", subject: "", chapter_name: "", description: "", total_marks: 10 });
@@ -261,13 +268,24 @@ function App() {
     setError("");
     setBusy(true);
     try {
-      const d = await rpc("student_portal_login", { p_code: code.trim() });
+      const cleanCode = code.trim();
+      const d = await rpc("student_portal_login", { p_code: cleanCode });
       if (!d?.success) throw Error("প্রবেশ কোড সঠিক নয় বা নিষ্ক্রিয়");
+      if (rememberCode) {
+        localStorage.setItem("msa_saved_code", cleanCode);
+      } else {
+        localStorage.removeItem("msa_saved_code");
+      }
       setStudent({ ...d.student, exams: d.exams || [] });
       setSubmittingExams(d.submitting_exams || []);
-      setStudentCode(code.trim());
-      setResults(await rpc("student_my_results", { p_code: code.trim() }));
-      setCode("");
+      setStudentCode(cleanCode);
+      const [resList, tsList] = await Promise.all([
+        rpc("student_my_results", { p_code: cleanCode }),
+        rpc("student_my_tuition_sessions", { p_code: cleanCode }).catch(() => [])
+      ]);
+      setResults(resList || []);
+      setTuitionSessions(tsList || []);
+      if (!rememberCode) setCode("");
     } catch (x) {
       setError(x.message);
     } finally {
@@ -295,16 +313,18 @@ function App() {
 
   async function loadAdmin() {
     try {
-      const [s, t, e, a] = await Promise.all([
+      const [s, t, e, a, ts] = await Promise.all([
         rpc("admin_list_students"),
         rpc("admin_list_templates"),
         rpc("admin_list_exams"),
-        rpc("admin_list_attempts")
+        rpc("admin_list_attempts"),
+        rpc("admin_list_tuition_sessions").catch(() => [])
       ]);
       setStudents(s || []);
       setTemplates(t || []);
       setScheduled(e || []);
       setAttempts(a || []);
+      setAdminTuitionSessions(ts || []);
     } catch (x) {
       setError(x.message);
     }
@@ -317,6 +337,7 @@ function App() {
     setActiveExam(null);
     setPage("overview");
     setError("");
+    setCode(localStorage.getItem("msa_saved_code") || "");
   }
 
   // ── Student Portal Actions ──
@@ -327,8 +348,57 @@ function App() {
         setStudent({ ...d.student, exams: d.exams || [] });
         setSubmittingExams(d.submitting_exams || []);
       }
-      setResults(await rpc("student_my_results", { p_code: studentCode }));
+      const [resList, tsList] = await Promise.all([
+        rpc("student_my_results", { p_code: studentCode }),
+        rpc("student_my_tuition_sessions", { p_code: studentCode }).catch(() => [])
+      ]);
+      setResults(resList || []);
+      setTuitionSessions(tsList || []);
     } catch {}
+  }
+
+  // ── Admin: Tuition Tracker Handlers ──
+  async function addTuitionSession(e) {
+    e.preventDefault();
+    try {
+      if (!tuitionForm.student_id || !tuitionForm.session_date) throw Error("শিক্ষার্থী ও তারিখ নির্বাচন করুন।");
+      await rpc("admin_add_tuition_session", {
+        p_student_id: tuitionForm.student_id,
+        p_session_date: tuitionForm.session_date,
+        p_topic: tuitionForm.topic
+      });
+      setTuitionForm({ ...tuitionForm, topic: "" });
+      await loadAdmin();
+      notify("টিউশন ক্লাস সফলভাবে রেকর্ড হয়েছে!");
+    } catch (x) {
+      setError(x.message);
+    }
+  }
+
+  async function quickMarkToday(studentId, studentName) {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      await rpc("admin_add_tuition_session", {
+        p_student_id: studentId,
+        p_session_date: today,
+        p_topic: ""
+      });
+      await loadAdmin();
+      notify(`${studentName}-এর আজকের (${today}) ক্লাস রেকর্ড হয়েছে!`);
+    } catch (x) {
+      setError(x.message);
+    }
+  }
+
+  async function deleteTuitionSession(sessionId) {
+    if (!confirm("এই ক্লাসের তারিখটি মুছে ফেলতে চান?")) return;
+    try {
+      await rpc("admin_delete_tuition_session", { p_session_id: sessionId });
+      await loadAdmin();
+      notify("ক্লাস রেকর্ড মুছে ফেলা হয়েছে।");
+    } catch (x) {
+      setError(x.message);
+    }
   }
 
   async function startExam(exam) {
@@ -756,6 +826,7 @@ function App() {
   const adminNav = [
     { id: "overview", icon: "📊", label: "Dashboard", bangla: "ওভারভিউ" },
     { id: "students", icon: "👨‍🎓", label: "Students", bangla: "শিক্ষার্থী তালিকা", badge: students.length },
+    { id: "tuition", icon: "📅", label: "Tuition Tracker", bangla: "টিউশন হাজিরা" },
     { id: "question-bank", icon: "📚", label: "Question Bank", bangla: "প্রশ্ন ব্যাংক", badge: templates.filter(t => !t.is_archived).length },
     { id: "schedule", icon: "⏰", label: "Schedule Exam", bangla: "পরীক্ষা শিডিউল" },
     { id: "scheduled", icon: "📋", label: "Scheduled Exams", bangla: "নির্ধারিত পরীক্ষা", badge: scheduled.length },
@@ -866,17 +937,36 @@ function App() {
                     </>
                   ) : (
                     <>
-                      <label>Student Access Code (শিক্ষার্থীর কোড)</label>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <label style={{ margin: 0 }}>Student Access Code (শিক্ষার্থীর কোড)</label>
+                        {code && (
+                          <button 
+                            type="button" 
+                            className="text-btn" 
+                            style={{ padding: "2px 4px", fontSize: "11px", color: "#8b97a9" }}
+                            onClick={() => { setCode(""); localStorage.removeItem("msa_saved_code"); }}
+                          >
+                            ✕ কোড মুছুন
+                          </button>
+                        )}
+                      </div>
                       <input 
                         value={code} 
                         onChange={e => setCode(e.target.value)} 
                         placeholder="যেমন: MSA-123456" 
                         required 
-                        autoFocus
                       />
-                      <small className="input-hint">
-                        💡 তোমার শিক্ষক কর্তৃক প্রদত্ত কোডটি এখানে লিখো।
-                      </small>
+                      <label className="remember-code-label">
+                        <input 
+                          type="checkbox" 
+                          checked={rememberCode} 
+                          onChange={e => {
+                            setRememberCode(e.target.checked);
+                            if (!e.target.checked) localStorage.removeItem("msa_saved_code");
+                          }} 
+                        />
+                        <span>আমার Access Code মনে রাখো (Remember my code)</span>
+                      </label>
                     </>
                   )}
 
@@ -1028,8 +1118,18 @@ function App() {
     );
   }
 
-  // ── Student Dashboard (3 Sections: Assigned, Submitting, Results) ──
+  // ── Student Dashboard (4 Sections: Assigned, Submitting, Results, Tuition) ──
   if (student) {
+    const monthTuitionSessions = tuitionSessions.filter(ts => ts.session_date && ts.session_date.startsWith(tuitionMonth));
+    const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+    const thisMonthCount = tuitionSessions.filter(ts => ts.session_date && ts.session_date.startsWith(currentMonthPrefix)).length;
+
+    const [tYear, tMonth] = tuitionMonth.split("-").map(Number);
+    const daysInMonth = new Date(tYear, tMonth, 0).getDate();
+    const firstDayWeekday = new Date(tYear, tMonth - 1, 1).getDay();
+    const tuitionSessionMap = {};
+    monthTuitionSessions.forEach(ts => { tuitionSessionMap[ts.session_date] = ts; });
+
     return (
       <div className="student-shell">
         <header className="topbar">
@@ -1062,6 +1162,10 @@ function App() {
                 <small>ফলাফল প্রকাশিত</small>
                 <b>{results.length} টি</b>
               </div>
+              <div className={`quick-stat-box ${studentTab === "tuition" ? "active" : ""}`} onClick={() => setStudentTab("tuition")}>
+                <small>এই মাসে ক্লাস</small>
+                <b>{thisMonthCount} / ১২ দিন</b>
+              </div>
             </div>
           </div>
 
@@ -1074,6 +1178,9 @@ function App() {
             </button>
             <button className={`tab-btn ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
               🏆 Results (ফলাফল ও ইতিহাস) <span className="tab-badge">{results.length}</span>
+            </button>
+            <button className={`tab-btn ${studentTab === "tuition" ? "active" : ""}`} onClick={() => setStudentTab("tuition")}>
+              📖 Tuition Classes (ক্লাস হাজিরা) <span className="tab-badge">{thisMonthCount}/12</span>
             </button>
           </div>
 
@@ -1246,6 +1353,117 @@ function App() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Section 4: Tuition Class Attendance Tracker ── */}
+          {studentTab === "tuition" && (
+            <div>
+              <div className="student-section-heading">
+                <div>
+                  <h2>টিউশন ক্লাস হাজিরা (Tuition Attendance)</h2>
+                  <p>সপ্তাহে ৩ দিন / মাসে ১২ দিনের পড়ানোর হিসাব ও তারিখসমূহ।</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ margin: 0, fontSize: "12px" }}>মাস নির্বাচন:</label>
+                  <input 
+                    type="month" 
+                    value={tuitionMonth} 
+                    onChange={e => setTuitionMonth(e.target.value)} 
+                    style={{ width: "auto", padding: "7px 12px", fontSize: "13px" }}
+                  />
+                </div>
+              </div>
+
+              {/* Monthly Progress Summary */}
+              <section className="card tuition-progress-card">
+                <div className="tuition-progress-head">
+                  <div>
+                    <small style={{ color: "#718096", fontWeight: 700 }}>মাসিক টিউশন অগ্রগতি ({tuitionMonth})</small>
+                    <h3 style={{ margin: "4px 0 0", fontSize: "22px", color: "#19365f" }}>
+                      {monthTuitionSessions.length} / ১২ দিন সম্পন্ন
+                    </h3>
+                  </div>
+                  {monthTuitionSessions.length >= 12 ? (
+                    <span className="badge-pill-success" style={{ fontSize: "12px", padding: "6px 12px" }}>
+                      ✅ এই মাসের ১২ দিন পূর্ণ হয়েছে!
+                    </span>
+                  ) : (
+                    <span className="badge-pill-warning" style={{ fontSize: "12px", padding: "6px 12px" }}>
+                      ⏳ আরও {12 - monthTuitionSessions.length} দিন বাকি
+                    </span>
+                  )}
+                </div>
+                <div className="tuition-progress-track">
+                  <div 
+                    className="tuition-progress-fill" 
+                    style={{ width: `${Math.min(100, Math.round((monthTuitionSessions.length / 12) * 100))}%` }}
+                  />
+                </div>
+              </section>
+
+              <div className="tuition-grid-layout">
+                {/* Interactive Monthly Calendar */}
+                <section className="card">
+                  <h3 style={{ margin: "0 0 14px", fontSize: "16px", color: "#19365f" }}>📅 মাসিক ক্যালেন্ডার ভিউ</h3>
+                  <div className="calendar-weekdays">
+                    {["রবি", "সোম", "মঙ্গল", "বুধ", "বৃহ", "শুক্র", "শনি"].map(d => (
+                      <div key={d} className="calendar-weekday">{d}</div>
+                    ))}
+                  </div>
+                  <div className="calendar-days-grid">
+                    {Array.from({ length: firstDayWeekday }).map((_, idx) => (
+                      <div key={`empty-${idx}`} className="calendar-day empty" />
+                    ))}
+                    {Array.from({ length: daysInMonth }).map((_, idx) => {
+                      const day = idx + 1;
+                      const dateStr = `${tuitionMonth}-${String(day).padStart(2, "0")}`;
+                      const session = tuitionSessionMap[dateStr];
+                      const isToday = dateStr === new Date().toISOString().slice(0, 10);
+                      return (
+                        <div 
+                          key={day} 
+                          className={`calendar-day ${session ? "taught" : ""} ${isToday ? "today" : ""}`}
+                          title={session ? `ক্লাস হয়েছে${session.topic ? `: ${session.topic}` : ""}` : ""}
+                        >
+                          <span>{day}</span>
+                          {session && <small className="day-check">✓</small>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* Date-by-date list */}
+                <section className="card">
+                  <h3 style={{ margin: "0 0 14px", fontSize: "16px", color: "#19365f" }}>
+                    📝 যে যে দিন ক্লাস হয়েছে ({monthTuitionSessions.length} দিন)
+                  </h3>
+                  {monthTuitionSessions.length === 0 ? (
+                    <div className="empty-state">এই মাসে এখনো কোনো ক্লাস রেকর্ড করা হয়নি।</div>
+                  ) : (
+                    <div className="tuition-date-list">
+                      {monthTuitionSessions.map((ts, idx) => (
+                        <div className="tuition-date-item" key={ts.id}>
+                          <div className="tuition-day-badge">#{monthTuitionSessions.length - idx}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <b>
+                              {new Date(ts.session_date + "T00:00:00").toLocaleDateString("bn-BD", {
+                                weekday: "long",
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric"
+                              })}
+                            </b>
+                            {ts.topic && <small style={{ display: "block", color: "#4a5568", marginTop: "3px" }}>টপিক: {ts.topic}</small>}
+                          </div>
+                          <span className="badge-pill-success">✓ সম্পন্ন</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
             </div>
           )}
 
@@ -1901,6 +2119,199 @@ function App() {
                   </div>
                 </div>
               )}
+            </>
+          )}
+
+          {/* ── TUITION TRACKER PAGE ── */}
+          {page === "tuition" && (
+            <>
+              <div className="page-heading">
+                <div>
+                  <h1>Tuition Attendance Tracker (টিউশন হাজিরা)</h1>
+                  <p>বাসায় গিয়ে পড়ানোর দিনগুলো (সপ্তাহে ৩ দিন / মাসে ১২ দিন) রেকর্ড করুন—শিক্ষার্থী তার ড্যাশবোর্ডে দেখতে পাবে।</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <label style={{ margin: 0, fontSize: "12px" }}>মাস:</label>
+                  <input 
+                    type="month" 
+                    value={tuitionMonthFilter} 
+                    onChange={e => setTuitionMonthFilter(e.target.value)} 
+                    style={{ width: "auto", padding: "8px 12px" }}
+                  />
+                </div>
+              </div>
+
+              <div className="dashboard-columns">
+                {/* Add Tuition Session Form */}
+                <section className="card">
+                  <div className="card-title-row">
+                    <div className="section-icon">📅</div>
+                    <div>
+                      <h2>ক্লাস রেকর্ড করুন (Mark Class)</h2>
+                      <p>যেকোনো তারিখ ও পড়ানোর টপিক লিখে সংরক্ষণ করুন।</p>
+                    </div>
+                  </div>
+                  <form className="form-stack" onSubmit={addTuitionSession}>
+                    <label>শিক্ষার্থী নির্বাচন করুন *</label>
+                    <select 
+                      required 
+                      value={tuitionForm.student_id} 
+                      onChange={e => setTuitionForm({ ...tuitionForm, student_id: e.target.value })}
+                    >
+                      <option value="">শিক্ষার্থী বাছাই করুন...</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} {s.class_name ? `(${s.class_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label>ক্লাসের তারিখ *</label>
+                    <input 
+                      type="date" 
+                      required 
+                      value={tuitionForm.session_date} 
+                      onChange={e => setTuitionForm({ ...tuitionForm, session_date: e.target.value })} 
+                    />
+
+                    <label>কী পড়ানো হয়েছে / টপিক (ঐচ্ছিক)</label>
+                    <input 
+                      type="text" 
+                      value={tuitionForm.topic} 
+                      onChange={e => setTuitionForm({ ...tuitionForm, topic: e.target.value })} 
+                      placeholder="যেমন: Physics Chapter 2 - Vector" 
+                    />
+
+                    <div style={{ marginTop: "10px" }}>
+                      <button className="btn primary full">✓ ক্লাস সেভ করুন (Save Class)</button>
+                    </div>
+                  </form>
+                </section>
+
+                {/* Monthly Student Summary */}
+                <section className="card">
+                  <div className="section-head">
+                    <div>
+                      <h2>মাসিক হিসাব ({tuitionMonthFilter})</h2>
+                      <p>১ ক্লিকেই আজকের হাজিরা মার্ক করুন</p>
+                    </div>
+                    <span className="count-pill">{students.length} জন</span>
+                  </div>
+
+                  <div className="student-scroll-list" style={{ marginTop: "14px" }}>
+                    {students.map(s => {
+                      const sMonthSessions = adminTuitionSessions.filter(
+                        ts => ts.student_id === s.id && ts.session_date && ts.session_date.startsWith(tuitionMonthFilter)
+                      );
+                      const todayStr = new Date().toISOString().slice(0, 10);
+                      const markedToday = adminTuitionSessions.some(
+                        ts => ts.student_id === s.id && ts.session_date === todayStr
+                      );
+                      const pct = Math.min(100, Math.round((sMonthSessions.length / 12) * 100));
+
+                      return (
+                        <div className="tuition-admin-student-card" key={s.id}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                              <b>{s.name}</b>
+                              <span className={sMonthSessions.length >= 12 ? "badge-pill-success" : "meta-pill"}>
+                                {sMonthSessions.length} / ১২ দিন
+                              </span>
+                            </div>
+                            <div className="tuition-progress-track" style={{ height: "6px", margin: "8px 0 4px" }}>
+                              <div className="tuition-progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
+                            <small style={{ color: "#718096", fontSize: "11px" }}>
+                              {s.class_name || "শিক্ষার্থী"} {s.roll_no ? `· Roll ${s.roll_no}` : ""}
+                            </small>
+                          </div>
+                          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                            <button 
+                              className={`btn small ${markedToday ? "ghost" : "primary"}`}
+                              disabled={markedToday}
+                              onClick={() => quickMarkToday(s.id, s.name)}
+                            >
+                              {markedToday ? "✓ আজ সম্পন্ন" : "⚡ + আজকের ক্লাস"}
+                            </button>
+                            <button 
+                              className="btn outline small"
+                              onClick={() => setTuitionStudentFilter(tuitionStudentFilter === s.id ? "" : s.id)}
+                            >
+                              {tuitionStudentFilter === s.id ? "সব দেখুন" : "তারিখ দেখুন"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {students.length === 0 && <div className="empty-state">কোনো শিক্ষার্থী নেই।</div>}
+                  </div>
+                </section>
+              </div>
+
+              {/* Tuition History Table */}
+              <section className="card" style={{ marginTop: "18px" }}>
+                <div className="section-head">
+                  <div>
+                    <h2>পড়ানোর তারিখসমূহ ({tuitionMonthFilter})</h2>
+                    <p>মাসের সব ক্লাসের বিস্তারিত তালিকা</p>
+                  </div>
+                  <select 
+                    value={tuitionStudentFilter} 
+                    onChange={e => setTuitionStudentFilter(e.target.value)}
+                    style={{ width: "auto", minWidth: "200px", padding: "8px 12px" }}
+                  >
+                    <option value="">সকল শিক্ষার্থী</option>
+                    {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="table-scroll" style={{ marginTop: "12px" }}>
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>DATE & DAY</th>
+                        <th>STUDENT</th>
+                        <th>TOPIC / NOTE</th>
+                        <th>ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminTuitionSessions
+                        .filter(ts => ts.session_date && ts.session_date.startsWith(tuitionMonthFilter))
+                        .filter(ts => !tuitionStudentFilter || ts.student_id === tuitionStudentFilter)
+                        .map(ts => (
+                          <tr key={ts.id}>
+                            <td>
+                              <b>
+                                {new Date(ts.session_date + "T00:00:00").toLocaleDateString("bn-BD", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric"
+                                })}
+                              </b>
+                            </td>
+                            <td>
+                              <b>{ts.student_name}</b>
+                              <small>{ts.class_name || ""}</small>
+                            </td>
+                            <td>{ts.topic || <span className="muted">—</span>}</td>
+                            <td>
+                              <button className="btn danger-outline small" onClick={() => deleteTuitionSession(ts.id)}>
+                                🗑️ মুছুন
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                {adminTuitionSessions
+                  .filter(ts => ts.session_date && ts.session_date.startsWith(tuitionMonthFilter))
+                  .filter(ts => !tuitionStudentFilter || ts.student_id === tuitionStudentFilter).length === 0 && (
+                  <div className="empty-state" style={{ marginTop: "12px" }}>এই মাসে কোনো ক্লাস রেকর্ড করা নেই।</div>
+                )}
+              </section>
             </>
           )}
 
