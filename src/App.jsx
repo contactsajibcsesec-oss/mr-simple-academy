@@ -401,6 +401,18 @@ function App() {
     }
   }
 
+  async function updateStudentMonthlyTarget(studentId, target) {
+    try {
+      const val = Number(target);
+      if (!val || val < 1 || val > 31) throw Error("মাসিক টার্গেট ১ থেকে ৩১ দিনের মধ্যে হতে হবে।");
+      await rpc("admin_set_student_tuition_target", { p_student_id: studentId, p_monthly_target: val });
+      await loadAdmin();
+      notify(`মাসিক ক্লাস টার্গেট ${val} দিন সেভ হয়েছে!`);
+    } catch (x) {
+      setError(x.message);
+    }
+  }
+
   async function startExam(exam) {
     try {
       const d = await rpc("student_start_exam", { p_code: studentCode, p_exam_id: exam.id });
@@ -1123,6 +1135,7 @@ function App() {
     const monthTuitionSessions = tuitionSessions.filter(ts => ts.session_date && ts.session_date.startsWith(tuitionMonth));
     const currentMonthPrefix = new Date().toISOString().slice(0, 7);
     const thisMonthCount = tuitionSessions.filter(ts => ts.session_date && ts.session_date.startsWith(currentMonthPrefix)).length;
+    const monthlyTarget = Number(student.monthly_target || 12);
 
     const [tYear, tMonth] = tuitionMonth.split("-").map(Number);
     const daysInMonth = new Date(tYear, tMonth, 0).getDate();
@@ -1150,37 +1163,37 @@ function App() {
             </div>
 
             <div className="student-quick-stats">
-              <div className={`quick-stat-box ${studentTab === "assigned" ? "active" : ""}`} onClick={() => setStudentTab("assigned")}>
-                <small>বরাদ্দকৃত পরীক্ষা</small>
+              <div className={`quick-stat-box stat-blue ${studentTab === "assigned" ? "active" : ""}`} onClick={() => setStudentTab("assigned")}>
+                <small>📅 বরাদ্দকৃত পরীক্ষা</small>
                 <b>{(student.exams || []).length} টি</b>
               </div>
-              <div className={`quick-stat-box ${studentTab === "submitting" ? "active" : ""}`} onClick={() => setStudentTab("submitting")}>
-                <small>মূল্যায়নাধীন খাতা</small>
+              <div className={`quick-stat-box stat-amber ${studentTab === "submitting" ? "active" : ""}`} onClick={() => setStudentTab("submitting")}>
+                <small>⏳ মূল্যায়নাধীন খাতা</small>
                 <b>{submittingExams.length} টি</b>
               </div>
-              <div className={`quick-stat-box ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
-                <small>ফলাফল প্রকাশিত</small>
+              <div className={`quick-stat-box stat-green ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
+                <small>🏆 ফলাফল প্রকাশিত</small>
                 <b>{results.length} টি</b>
               </div>
-              <div className={`quick-stat-box ${studentTab === "tuition" ? "active" : ""}`} onClick={() => setStudentTab("tuition")}>
-                <small>এই মাসে ক্লাস</small>
-                <b>{thisMonthCount} / ১২ দিন</b>
+              <div className={`quick-stat-box stat-purple ${studentTab === "tuition" ? "active" : ""}`} onClick={() => setStudentTab("tuition")}>
+                <small>📖 Tuition Class</small>
+                <b>{thisMonthCount} / {monthlyTarget} দিন</b>
               </div>
             </div>
           </div>
 
           <div className="student-tabs">
             <button className={`tab-btn ${studentTab === "assigned" ? "active" : ""}`} onClick={() => setStudentTab("assigned")}>
-              📅 Assigned Exams (বরাদ্দকৃত) <span className="tab-badge">{(student.exams || []).length}</span>
+              📅 Assigned Exams <span className="tab-badge">{(student.exams || []).length}</span>
             </button>
             <button className={`tab-btn ${studentTab === "submitting" ? "active" : ""}`} onClick={() => setStudentTab("submitting")}>
-              ⏳ Submitting (মূল্যায়নাধীন) <span className="tab-badge">{submittingExams.length}</span>
+              ⏳ Submitting <span className="tab-badge">{submittingExams.length}</span>
             </button>
             <button className={`tab-btn ${studentTab === "results" ? "active" : ""}`} onClick={() => setStudentTab("results")}>
-              🏆 Results (ফলাফল ও ইতিহাস) <span className="tab-badge">{results.length}</span>
+              🏆 Results <span className="tab-badge">{results.length}</span>
             </button>
             <button className={`tab-btn ${studentTab === "tuition" ? "active" : ""}`} onClick={() => setStudentTab("tuition")}>
-              📖 Tuition Classes (ক্লাস হাজিরা) <span className="tab-badge">{thisMonthCount}/12</span>
+              📖 Tuition Class <span className="tab-badge">{thisMonthCount}/{monthlyTarget}</span>
             </button>
           </div>
 
@@ -1356,13 +1369,12 @@ function App() {
             </div>
           )}
 
-          {/* ── Section 4: Tuition Class Attendance Tracker ── */}
+          {/* ── Section 4: Tuition Class ── */}
           {studentTab === "tuition" && (
             <div>
               <div className="student-section-heading">
                 <div>
-                  <h2>টিউশন ক্লাস হাজিরা (Tuition Attendance)</h2>
-                  <p>সপ্তাহে ৩ দিন / মাসে ১২ দিনের পড়ানোর হিসাব ও তারিখসমূহ।</p>
+                  <h2>Tuition Class</h2>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <label style={{ margin: 0, fontSize: "12px" }}>মাস নির্বাচন:</label>
@@ -1381,23 +1393,23 @@ function App() {
                   <div>
                     <small style={{ color: "#718096", fontWeight: 700 }}>মাসিক টিউশন অগ্রগতি ({tuitionMonth})</small>
                     <h3 style={{ margin: "4px 0 0", fontSize: "22px", color: "#19365f" }}>
-                      {monthTuitionSessions.length} / ১২ দিন সম্পন্ন
+                      {monthTuitionSessions.length} / {monthlyTarget} দিন সম্পন্ন
                     </h3>
                   </div>
-                  {monthTuitionSessions.length >= 12 ? (
+                  {monthTuitionSessions.length >= monthlyTarget ? (
                     <span className="badge-pill-success" style={{ fontSize: "12px", padding: "6px 12px" }}>
-                      ✅ এই মাসের ১২ দিন পূর্ণ হয়েছে!
+                      ✅ এই মাসের {monthlyTarget} দিন পূর্ণ হয়েছে!
                     </span>
                   ) : (
                     <span className="badge-pill-warning" style={{ fontSize: "12px", padding: "6px 12px" }}>
-                      ⏳ আরও {12 - monthTuitionSessions.length} দিন বাকি
+                      ⏳ আরও {monthlyTarget - monthTuitionSessions.length} দিন বাকি
                     </span>
                   )}
                 </div>
                 <div className="tuition-progress-track">
                   <div 
                     className="tuition-progress-fill" 
-                    style={{ width: `${Math.min(100, Math.round((monthTuitionSessions.length / 12) * 100))}%` }}
+                    style={{ width: `${Math.min(100, Math.round((monthTuitionSessions.length / monthlyTarget) * 100))}%` }}
                   />
                 </div>
               </section>
@@ -2207,23 +2219,46 @@ function App() {
                       const markedToday = adminTuitionSessions.some(
                         ts => ts.student_id === s.id && ts.session_date === todayStr
                       );
-                      const pct = Math.min(100, Math.round((sMonthSessions.length / 12) * 100));
+                      const target = Number(s.monthly_target || 12);
+                      const pct = Math.min(100, Math.round((sMonthSessions.length / target) * 100));
 
                       return (
                         <div className="tuition-admin-student-card" key={s.id}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ flex: 1, minWidth: "200px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                               <b>{s.name}</b>
-                              <span className={sMonthSessions.length >= 12 ? "badge-pill-success" : "meta-pill"}>
-                                {sMonthSessions.length} / ১২ দিন
+                              <span className={sMonthSessions.length >= target ? "badge-pill-success" : "meta-pill"}>
+                                {sMonthSessions.length} / {target} দিন
                               </span>
                             </div>
-                            <div className="tuition-progress-track" style={{ height: "6px", margin: "8px 0 4px" }}>
+                            <div className="tuition-progress-track" style={{ height: "6px", margin: "8px 0 6px" }}>
                               <div className="tuition-progress-fill" style={{ width: `${pct}%` }} />
                             </div>
-                            <small style={{ color: "#718096", fontSize: "11px" }}>
-                              {s.class_name || "শিক্ষার্থী"} {s.roll_no ? `· Roll ${s.roll_no}` : ""}
-                            </small>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              <small style={{ color: "#718096", fontSize: "11px" }}>মাসিক টার্গেট:</small>
+                              {[12, 16].map(val => (
+                                <button
+                                  key={val}
+                                  type="button"
+                                  className={`chip-btn ${target === val ? "active" : ""}`}
+                                  style={{ padding: "2px 8px", fontSize: "11px" }}
+                                  onClick={() => updateStudentMonthlyTarget(s.id, val)}
+                                >
+                                  {val} দিন
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                className={`chip-btn ${target !== 12 && target !== 16 ? "active" : ""}`}
+                                style={{ padding: "2px 8px", fontSize: "11px" }}
+                                onClick={() => {
+                                  const custom = prompt(`${s.name}-এর মাসিক ক্লাস টার্গেট লিখুন (১-৩১):`, String(target));
+                                  if (custom !== null && custom.trim() !== "") updateStudentMonthlyTarget(s.id, custom);
+                                }}
+                              >
+                                ✏️ {target !== 12 && target !== 16 ? `${target} দিন` : "Custom"}
+                              </button>
+                            </div>
                           </div>
                           <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                             <button 

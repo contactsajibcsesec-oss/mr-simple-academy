@@ -470,3 +470,31 @@
 .tuition-day-badge{height:32px;width:32px;border-radius:9px;background:#ebf4ff;color:#2b6cb0;display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0}
 
 .tuition-admin-student-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;flex-wrap:wrap}
+
+
+/* ── Enhanced Student Dashboard Design ────────────────────────── */
+.student-shell{background:linear-gradient(180deg,#f5f8fd 0%,#eef3fb 100%);display:flex;flex-direction:column}
+.student-shell .topbar{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);position:sticky;top:0;z-index:20}
+
+.student-profile-bar{position:relative;overflow:hidden;border:1px solid #dce5f2;box-shadow:0 10px 30px rgba(22,46,85,.06);border-radius:20px;padding:26px 28px}
+.student-profile-bar::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#1e3c6b,#3182ce,#38a169)}
+.student-big-avatar{height:58px;width:58px;box-shadow:0 6px 16px rgba(43,108,176,.28);border:3px solid #ebf4ff;flex-shrink:0}
+
+.quick-stat-box{border-radius:14px;padding:12px 16px;min-width:125px;border-top:3px solid #cbd5e1;transition:transform .18s,box-shadow .18s,background .18s}
+.quick-stat-box:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(22,46,85,.07)}
+.quick-stat-box.stat-blue{border-top-color:#3182ce}
+.quick-stat-box.stat-amber{border-top-color:#dd6b20}
+.quick-stat-box.stat-green{border-top-color:#38a169}
+.quick-stat-box.stat-purple{border-top-color:#805ad5}
+.quick-stat-box.stat-purple b{color:#6b46c1}
+.quick-stat-box.stat-green b{color:#2f855a}
+.quick-stat-box.stat-amber b{color:#c05621}
+
+.student-tabs{background:#ffffff;padding:8px;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 3px 12px rgba(22,46,85,.03);border-bottom:1px solid #e2e8f0}
+.tab-btn{white-space:nowrap;border-radius:10px;padding:10px 16px;font-size:13px}
+
+@media(max-width:650px){
+  .student-profile-bar{padding:20px 16px}
+  .student-quick-stats{display:grid;grid-template-columns:1fr 1fr;width:100%;gap:10px}
+  .quick-stat-box{min-width:0}
+}
